@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VentRec - Audio Vent Recorder</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .widget-container {
+            width: 360px;
+            background-color: #111;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(255, 102, 0, 0.3);
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .widget-header {
+            background-color: #222;
+            padding: 15px;
+            text-align: center;
+            border-bottom: 2px solid #ff6600;
+        }
+
+        .logo {
+            font-size: 1.6rem;
+            font-weight: 800;
+            color: #ff6600;
+            margin-bottom: 5px;
+        }
+
+        .subtitle {
+            font-size: 0.8rem;
+            color: #aaa;
+            font-weight: 300;
+        }
+
+        .widget-body {
+            padding: 20px;
+        }
+
+        .timer-section {
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #ff6600;
+            margin: 15px 0;
+            text-shadow: 0 0 10px rgba(255, 102, 0, 0.5);
+            font-family: 'Courier New', monospace;
+            letter-spacing: 2px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            height: 20px;
+        }
+
+        .recording-dot {
+            width: 10px;
+            height: 10px;
+            background-color: #ff3333;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+            display: none;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        /* Voice Wave Visualization */
+        .voice-wave-container {
+            height: 100px;
+            width: 100%;
+            margin: 15px 0 20px 0;
+            background-color: #0a0a0a;
+            border-radius: 8px;
+            border: 1px solid #333;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .voice-wave {
+            height: 100%;
+            width: 100%;
+            position: relative;
+            display: none;
+        }
+
+        .wave-bar {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            background-color: #ff6600;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s ease;
+        }
+
+        .mic-level {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            font-size: 0.7rem;
+            color: #ff6600;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            border-radius: 3px;
+            display: none;
+        }
+
+        .wave-placeholder {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .wave-placeholder i {
+            font-size: 2rem;
+            margin-bottom: 10px;
+            color: #444;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            padding: 14px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-start {
+            background-color: #ff6600;
+            color: #000;
+        }
+
+        .btn-start:hover:not(:disabled) {
+            background-color: #ff8533;
+            box-shadow: 0 0 15px rgba(255, 102, 0, 0.7);
+            transform: translateY(-2px);
+        }
+
+        .btn-stop {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #ff6600;
+        }
+
+        .btn-stop:hover:not(:disabled) {
+            background-color: #444;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .progress-container {
+            margin: 15px 0;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #aaa;
+            margin-bottom: 5px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background-color: #333;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background-color: #ff6600;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .upload-progress-container {
+            margin: 10px 0;
+            display: none;
+        }
+
+        .upload-progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .upload-progress {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .privacy-note {
+            font-size: 0.65rem;
+            color: #666;
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
+            line-height: 1.4;
+        }
+
+        .time-options {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .time-option {
+            background-color: #222;
+            color: #aaa;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 5px 10px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .time-option:hover {
+            background-color: #2a2a2a;
+        }
+
+        .time-option.active {
+            background-color: #ff6600;
+            color: #000;
+            border-color: #ff6600;
+        }
+
+        .upload-status {
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 6px;
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .upload-status.processing {
+            background-color: rgba(255, 102, 0, 0.1);
+            color: #ff6600;
+            border: 1px solid rgba(255, 102, 0, 0.3);
+        }
+
+        .upload-status.success {
+            background-color: rgba(76, 175, 80, 0.1);
+            color: #4CAF50;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .upload-status.error {
+            background-color: rgba(244, 67, 54, 0.1);
+            color: #f44336;
+            border: 1px solid rgba(244, 67, 54, 0.3);
+        }
+
+        .mic-check {
+            font-size: 0.75rem;
+            color: #4CAF50;
+            text-align: center;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .recording-info {
+            background-color: rgba(255, 102, 0, 0.1);
+            border: 1px solid rgba(255, 102, 0, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 0.75rem;
+            color: #ff6600;
+            text-align: center;
+        }
+
+        .audio-preview {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .audio-preview audio {
+            width: 100%;
+            border-radius: 6px;
+        }
+
+        .file-info {
+            font-size: 0.7rem;
+            color: #aaa;
+            text-align: center;
+            margin-top: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .recorded-length {
+            font-size: 0.75rem;
+            color: #ff6600;
+            margin: 10px 0;
+        }
+
+        .error-message {
+            background-color: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 0.75rem;
+            color: #f44336;
+            text-align: center;
+            display: none;
+        }
+
+        .chunk-info {
+            font-size: 0.7rem;
+            color: #aaa;
+            text-align: center;
+            margin-top: 5px;
+        }
+
+        .drive-link {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 6px;
+            text-align: center;
+            display: none;
+        }
+
+        .drive-link a {
+            color: #4CAF50;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .drive-link a:hover {
+            text-decoration: underline;
+        }
+
+        .quality-badge {
+            display: inline-block;
+            background-color: #1a1a1a;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.65rem;
+            color: #aaa;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .supabase-status {
+            font-size: 0.65rem;
+            color: #555;
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        .supabase-status.connected {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container">
+        <div class="widget-header">
+            <div class="logo">VentRec <span class="quality-badge">Low Quality</span></div>
+            <div class="subtitle">Audio Recording &amp; Save to Google Drive</div>
+        </div>
+
+        <div class="widget-body">
+            <!-- Error Message -->
+            <div class="error-message" id="errorMessage"></div>
+
+            <div class="timer-section">
+                <div class="timer-display" id="timer">03:00</div>
+
+                <div class="status-indicator">
+                    <span class="recording-dot" id="recordingDot"></span>
+                    <span id="statusText">Ready to record</span>
+                </div>
+
+                <!-- Recording Info -->
+                <div class="recording-info" id="recordingInfo" style="display: none;">
+                    <i class="fas fa-microphone"></i> Recording audio — Will save to Google Drive
+                </div>
+
+                <!-- Voice Wave Visualization -->
+                <div class="voice-wave-container">
+                    <div class="voice-wave" id="voiceWave">
+                        <div class="mic-level" id="micLevel">Level: 0%</div>
+                    </div>
+                    <div class="wave-placeholder" id="wavePlaceholder">
+                        <i class="fas fa-microphone"></i>
+                        <div>Audio visualization will appear here</div>
+                    </div>
+                </div>
+
+                <div class="mic-check" id="micCheck">
+                    <i class="fas fa-check-circle"></i> Microphone ready
+                </div>
+
+                <div class="controls">
+                    <button class="btn btn-start" id="startBtn">
+                        <i class="fas fa-microphone"></i> Start Recording
+                    </button>
+                    <button class="btn btn-stop" id="stopBtn" disabled>
+                        <i class="fas fa-stop"></i> Stop Recording
+                    </button>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Recording Progress</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress" id="progress"></div>
+                    </div>
+                </div>
+
+                <!-- Recording Length -->
+                <div class="recorded-length" id="recordedLength" style="display: none;">
+                    <i class="fas fa-file-audio"></i> Recorded: <span id="recordedTime">0</span> seconds
+                </div>
+
+                <!-- Upload Progress -->
+                <div class="upload-progress-container" id="uploadProgressContainer">
+                    <div class="progress-label">
+                        <span>Uploading to Drive</span>
+                        <span id="uploadPercent">0%</span>
+                    </div>
+                    <div class="upload-progress-bar">
+                        <div class="upload-progress" id="uploadProgress"></div>
+                    </div>
+                    <div class="chunk-info" id="chunkInfo"></div>
+                </div>
+
+                <!-- Upload Status -->
+                <div class="upload-status" id="uploadStatus"></div>
+
+                <!-- Google Drive Link -->
+                <div class="drive-link" id="driveLink">
+                    <i class="fas fa-cloud"></i>
+                    <a href="#" target="_blank" id="driveLinkUrl">View in Google Drive</a>
+                </div>
+
+                <!-- Audio Preview -->
+                <div class="audio-preview" id="audioPreview">
+                    <audio controls id="audioPlayer"></audio>
+                    <div class="file-info">
+                        <span id="fileSize">Size: 0 KB</span>
+                        <span id="fileFormat">Format: WebM</span>
+                    </div>
+                </div>
+
+                <div class="time-options">
+                    <div class="time-option active" data-time="180">3 min</div>
+                    <div class="time-option" data-time="120">2 min</div>
+                    <div class="time-option" data-time="60">1 min</div>
+                </div>
+            </div>
+
+            <div class="privacy-note">
+                <i class="fas fa-user-secret"></i> Audio is saved to your Google Drive &amp; logged to Supabase
+            </div>
+            <div class="supabase-status" id="supabaseStatus">Connecting to Supabase...</div>
+        </div>
+    </div>
+
+    <script>
+        // ─────────────────────────────────────────────────────────────
+        // CONFIGURATION
+        // Replace GOOGLE_SCRIPT_URL with your deployed Google Apps Script URL.
+        // See README.md for setup instructions.
+        // ─────────────────────────────────────────────────────────────
+        const GOOGLE_SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE';
+
+        // Supabase configuration
+        const SUPABASE_URL = 'https://ogabwaekaeinyduntwmt.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nYWJ3YWVrYWVpbnlkdW50d210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzUxNjMsImV4cCI6MjA4OTg1MTE2M30.A_48JfQ5cfUeY9WLvHiOSSlW5mHjHQmTSLkd-Y0dhi4';
+
+        // ─────────────────────────────────────────────────────────────
+        // LOW-QUALITY AUDIO SETTINGS (to save space on Google Drive)
+        // audioBitsPerSecond: 32000 = ~32 kbps (vs default 128 kbps)
+        // sampleRate: 16000 Hz (vs default 44100 Hz)
+        // ─────────────────────────────────────────────────────────────
+        const LOW_QUALITY_BITRATE = 32000;   // 32 kbps
+        const LOW_QUALITY_SAMPLE_RATE = 16000; // 16 kHz
+
+        // ─────────────────────────────────────────────────────────────
+        // SUPABASE CLIENT
+        // ─────────────────────────────────────────────────────────────
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // DOM elements
+        const timerDisplay = document.getElementById('timer');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const recordingDot = document.getElementById('recordingDot');
+        const statusText = document.getElementById('statusText');
+        const progress = document.getElementById('progress');
+        const progressPercent = document.getElementById('progressPercent');
+        const timeOptions = document.querySelectorAll('.time-option');
+        const voiceWave = document.getElementById('voiceWave');
+        const wavePlaceholder = document.getElementById('wavePlaceholder');
+        const micLevel = document.getElementById('micLevel');
+        const micCheck = document.getElementById('micCheck');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const recordingInfo = document.getElementById('recordingInfo');
+        const audioPreview = document.getElementById('audioPreview');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const fileSize = document.getElementById('fileSize');
+        const recordedLength = document.getElementById('recordedLength');
+        const recordedTime = document.getElementById('recordedTime');
+        const errorMessage = document.getElementById('errorMessage');
+        const uploadProgressContainer = document.getElementById('uploadProgressContainer');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadPercent = document.getElementById('uploadPercent');
+        const chunkInfo = document.getElementById('chunkInfo');
+        const fileFormat = document.getElementById('fileFormat');
+        const driveLink = document.getElementById('driveLink');
+        const driveLinkUrl = document.getElementById('driveLinkUrl');
+        const supabaseStatusEl = document.getElementById('supabaseStatus');
+
+        // Audio recording variables
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let audioBlob = null;
+        let audioUrl = null;
+        let recordingStartTime = null;
+
+        // Timer variables
+        let totalTime = 180;
+        let timeLeft = totalTime;
+        let timerInterval = null;
+        let isRecording = false;
+        let uploadInProgress = false;
+        let sessionId = null;
+        let animationId = null;
+
+        // Audio visualization variables
+        let audioContext = null;
+        let analyser = null;
+        let microphone = null;
+        let audioStream = null;
+        let waveBars = [];
+        const BAR_COUNT = 50;
+
+        // Event listeners
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+
+        // ─────────────────────────────────────────────────────────────
+        // INITIALIZE
+        // ─────────────────────────────────────────────────────────────
+        async function init() {
+            if (GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                showError('Configure your Google Apps Script URL — see README.md');
+            }
+
+            setActiveTimeOption(180);
+
+            timeOptions.forEach(option => {
+                option.addEventListener('click', function () {
+                    const time = parseInt(this.getAttribute('data-time'));
+                    if (!isRecording) {
+                        totalTime = time;
+                        timeLeft = time;
+                        updateTimerDisplay();
+                        setActiveTimeOption(time);
+                    }
+                });
+            });
+
+            sessionId = 'vent_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            initVoiceWave();
+            await checkMicrophonePermission();
+            await checkSupabaseConnection();
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // SUPABASE CONNECTION CHECK
+        // ─────────────────────────────────────────────────────────────
+        async function checkSupabaseConnection() {
+            try {
+                const { error } = await supabaseClient.from('recordings').select('id').limit(1);
+                if (error) throw error;
+                supabaseStatusEl.textContent = '✓ Supabase connected';
+                supabaseStatusEl.classList.add('connected');
+            } catch (err) {
+                supabaseStatusEl.textContent = '⚠ Supabase connection issue';
+                console.warn('Supabase connection issue:', err.message);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // LOG RECORDING TO SUPABASE
+        // ─────────────────────────────────────────────────────────────
+        async function logToSupabase(data) {
+            try {
+                const { error } = await supabaseClient.from('recordings').insert([data]);
+                if (error) throw error;
+                console.log('Logged to Supabase:', data);
+            } catch (err) {
+                console.warn('Supabase log failed:', err.message);
+            }
+        }
+
+        async function updateSupabaseRecord(sessionId, updates) {
+            try {
+                const { error } = await supabaseClient
+                    .from('recordings')
+                    .update({ ...updates, updated_at: new Date().toISOString() })
+                    .eq('session_id', sessionId);
+                if (error) throw error;
+            } catch (err) {
+                console.warn('Supabase update failed:', err.message);
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // VOICE WAVE VISUALIZATION
+        // ─────────────────────────────────────────────────────────────
+        function initVoiceWave() {
+            voiceWave.innerHTML = '';
+            waveBars = [];
+            for (let i = 0; i < BAR_COUNT; i++) {
+                const bar = document.createElement('div');
+                bar.className = 'wave-bar';
+                bar.style.left = `${(i / BAR_COUNT) * 100}%`;
+                bar.style.height = '0px';
+                voiceWave.appendChild(bar);
+                waveBars.push(bar);
+            }
+            micLevel.textContent = 'Level: 0%';
+            voiceWave.appendChild(micLevel);
+        }
+
+        async function checkMicrophonePermission() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                stream.getTracks().forEach(track => track.stop());
+                micCheck.innerHTML = '<i class="fas fa-check-circle"></i> Microphone ready';
+                micCheck.style.color = '#4CAF50';
+            } catch (error) {
+                micCheck.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Microphone access required';
+                micCheck.style.color = '#f44336';
+                startBtn.disabled = true;
+                showError('Please allow microphone access to record audio');
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => { errorMessage.style.display = 'none'; }, 8000);
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // AUDIO RECORDING SETUP (LOW QUALITY)
+        // ─────────────────────────────────────────────────────────────
+        async function setupAudioRecording() {
+            try {
+                audioStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: LOW_QUALITY_SAMPLE_RATE   // 16 kHz for low quality
+                    }
+                });
+
+                // Prefer opus codec for best compression at low bitrates
+                const mimeTypes = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/ogg;codecs=opus',
+                    'audio/mp4'
+                ];
+
+                let selectedMimeType = '';
+                for (const mimeType of mimeTypes) {
+                    if (MediaRecorder.isTypeSupported(mimeType)) {
+                        selectedMimeType = mimeType;
+                        break;
+                    }
+                }
+
+                // LOW QUALITY: 32 kbps bitrate to save Google Drive space
+                const options = selectedMimeType ? {
+                    mimeType: selectedMimeType,
+                    audioBitsPerSecond: LOW_QUALITY_BITRATE
+                } : { audioBitsPerSecond: LOW_QUALITY_BITRATE };
+
+                mediaRecorder = new MediaRecorder(audioStream, options);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        updateRecordedTime();
+                    }
+                };
+
+                mediaRecorder.onstop = async () => {
+                    const mimeType = mediaRecorder.mimeType || 'audio/webm';
+                    audioBlob = new Blob(audioChunks, { type: mimeType });
+                    audioUrl = URL.createObjectURL(audioBlob);
+
+                    audioPlayer.src = audioUrl;
+                    audioPreview.style.display = 'block';
+
+                    const sizeKB = (audioBlob.size / 1024).toFixed(1);
+                    fileSize.textContent = `Size: ${sizeKB} KB`;
+                    fileFormat.textContent = `Format: ${mimeType.split(';')[0].split('/')[1].toUpperCase()}`;
+
+                    stopAudioVisualization();
+
+                    const duration = Math.floor((Date.now() - recordingStartTime) / 1000);
+                    const timestamp = new Date().toISOString();
+                    const filename = `VentRec_${timestamp.replace(/[:.]/g, '-')}.${mimeType.split(';')[0].split('/')[1]}`;
+
+                    // Log initial record to Supabase
+                    await logToSupabase({
+                        session_id: sessionId,
+                        filename: filename,
+                        duration_seconds: duration,
+                        file_size_bytes: audioBlob.size,
+                        mime_type: mimeType,
+                        status: 'uploading',
+                        created_at: timestamp,
+                        updated_at: timestamp
+                    });
+
+                    // Upload to Google Drive
+                    await uploadToGoogleDrive(audioBlob, duration, filename);
+                };
+
+                setupAudioVisualization(audioStream);
+                return true;
+
+            } catch (error) {
+                showError('Error accessing microphone: ' + error.message);
+                return false;
+            }
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // AUDIO VISUALIZATION
+        // ─────────────────────────────────────────────────────────────
+        function setupAudioVisualization(stream) {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                microphone = audioContext.createMediaStreamSource(stream);
+                microphone.connect(analyser);
+                analyser.fftSize = 256;
+                analyser.smoothingTimeConstant = 0.8;
+                startVisualization();
+            } catch (error) {
+                startSimulatedVisualization();
+            }
+        }
+
+        function startVisualization() {
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function updateWave() {
+                if (!isRecording) return;
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+                const average = sum / bufferLength;
+
+                for (let i = 0; i < waveBars.length; i++) {
+                    const binIndex = Math.floor((i / waveBars.length) * bufferLength);
+                    const value = dataArray[binIndex];
+                    const height = (value / 255) * 100;
+                    waveBars[i].style.height = `${height}px`;
+                    const intensity = value / 255;
+                    const red = Math.floor(255 * intensity);
+                    const green = Math.floor(102 + (153 * (1 - intensity)));
+                    waveBars[i].style.backgroundColor = `rgb(${red}, ${green}, 0)`;
+                }
+
+                const levelPercent = Math.round((average / 255) * 100);
+                micLevel.textContent = `Level: ${levelPercent}%`;
+                micLevel.style.display = 'block';
+                animationId = requestAnimationFrame(updateWave);
+            }
+            animationId = requestAnimationFrame(updateWave);
+        }
+
+        function startSimulatedVisualization() {
+            let frameCount = 0;
+            function updateSimulatedWave() {
+                if (!isRecording) return;
+                frameCount++;
+                for (let i = 0; i < waveBars.length; i++) {
+                    const wavePosition = (i / waveBars.length) * Math.PI * 4 + (frameCount * 0.1);
+                    const sinValue = Math.sin(wavePosition);
+                    const randomValue = Math.random() * 0.5 + 0.5;
+                    const intensity = Math.abs(sinValue) * randomValue;
+                    const height = intensity * 100;
+                    waveBars[i].style.height = `${height}px`;
+                    const red = Math.floor(255 * intensity);
+                    const green = Math.floor(102 + (153 * (1 - intensity)));
+                    waveBars[i].style.backgroundColor = `rgb(${red}, ${green}, 0)`;
+                }
+                const levelPercent = Math.round((Math.abs(Math.sin(frameCount * 0.05)) * 0.7 + 0.3) * 100);
+                micLevel.textContent = `Level: ${levelPercent}%`;
+                micLevel.style.display = 'block';
+                animationId = requestAnimationFrame(updateSimulatedWave);
+            }
+            animationId = requestAnimationFrame(updateSimulatedWave);
+        }
+
+        function stopAudioVisualization() {
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (audioContext && audioContext.state !== 'closed') {
+                audioContext.close();
+                audioContext = null;
+            }
+            waveBars.forEach(bar => {
+                bar.style.height = '0px';
+                bar.style.backgroundColor = '#ff6600';
+            });
+            micLevel.style.display = 'none';
+        }
+
+        function updateRecordedTime() {
+            if (recordingStartTime) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                recordedTime.textContent = elapsed;
+                recordedLength.style.display = 'block';
+            }
+        }
+
+        function setActiveTimeOption(time) {
+            timeOptions.forEach(option => {
+                if (parseInt(option.getAttribute('data-time')) === time) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function updateTimerDisplay() {
+            timerDisplay.textContent = formatTime(timeLeft);
+            const percent = 100 - (timeLeft / totalTime * 100);
+            progress.style.width = `${percent}%`;
+            progressPercent.textContent = `${Math.round(percent)}%`;
+            timerDisplay.style.color = timeLeft <= 30 ? '#ff3333' : '#ff6600';
+        }
+
+        async function blobToBase64(blob) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result.split(',')[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // UPLOAD TO GOOGLE DRIVE
+        // ─────────────────────────────────────────────────────────────
+        async function uploadToGoogleDrive(audioBlob, duration, filename) {
+            if (uploadInProgress) return;
+            uploadInProgress = true;
+
+            uploadProgressContainer.style.display = 'block';
+            uploadProgress.style.width = '0%';
+            uploadPercent.textContent = '0%';
+
+            uploadStatus.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Preparing upload...';
+            uploadStatus.className = 'upload-status processing';
+            uploadStatus.style.display = 'block';
+
+            if (GOOGLE_SCRIPT_URL === 'YOUR_GOOGLE_APPS_SCRIPT_URL_HERE') {
+                uploadStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Google Drive not configured — see README.md';
+                uploadStatus.className = 'upload-status error';
+                await updateSupabaseRecord(sessionId, { status: 'drive_not_configured' });
+                uploadInProgress = false;
+                setTimeout(() => { uploadProgressContainer.style.display = 'none'; }, 3000);
+                return;
+            }
+
+            try {
+                const base64Audio = await blobToBase64(audioBlob);
+
+                uploadStatus.innerHTML = '<i class="fas fa-upload"></i> Uploading to Google Drive...';
+                uploadProgress.style.width = '30%';
+                uploadPercent.textContent = '30%';
+
+                const timestamp = new Date().toISOString();
+                const payload = {
+                    action: 'upload_audio',
+                    filename: filename || `VentRec_${timestamp.replace(/[:.]/g, '-')}.webm`,
+                    mimeType: audioBlob.type,
+                    audioData: base64Audio,
+                    fileSize: audioBlob.size,
+                    duration: duration,
+                    sessionId: sessionId,
+                    timestamp: timestamp
+                };
+
+                uploadProgress.style.width = '50%';
+                uploadPercent.textContent = '50%';
+
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: JSON.stringify(payload)
+                });
+
+                uploadProgress.style.width = '80%';
+                uploadPercent.textContent = '80%';
+
+                const result = await response.json();
+
+                uploadProgress.style.width = '100%';
+                uploadPercent.textContent = '100%';
+
+                if (result.success) {
+                    uploadStatus.innerHTML = '<i class="fas fa-check-circle"></i> Saved to Google Drive!';
+                    uploadStatus.className = 'upload-status success';
+
+                    if (result.fileUrl) {
+                        driveLinkUrl.href = result.fileUrl;
+                        driveLink.style.display = 'block';
+                    }
+
+                    // Update Supabase with Drive info
+                    await updateSupabaseRecord(sessionId, {
+                        drive_file_id: result.fileId || null,
+                        drive_file_url: result.fileUrl || null,
+                        status: 'uploaded'
+                    });
+                } else {
+                    throw new Error(result.error || 'Upload failed');
+                }
+
+            } catch (error) {
+                uploadStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Upload failed — audio saved locally';
+                uploadStatus.className = 'upload-status error';
+                showError('Could not upload to Google Drive. Audio is still available for playback.');
+                await updateSupabaseRecord(sessionId, { status: 'upload_failed' });
+            }
+
+            setTimeout(() => { uploadProgressContainer.style.display = 'none'; }, 3000);
+            uploadInProgress = false;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // START / STOP RECORDING
+        // ─────────────────────────────────────────────────────────────
+        async function startRecording() {
+            if (isRecording) return;
+
+            const setupSuccess = await setupAudioRecording();
+            if (!setupSuccess) return;
+
+            isRecording = true;
+            timeLeft = totalTime;
+            recordingStartTime = Date.now();
+            audioChunks = [];
+
+            uploadStatus.style.display = 'none';
+            uploadProgressContainer.style.display = 'none';
+            audioPreview.style.display = 'none';
+            recordedLength.style.display = 'none';
+            errorMessage.style.display = 'none';
+            driveLink.style.display = 'none';
+
+            wavePlaceholder.style.display = 'none';
+            voiceWave.style.display = 'block';
+            recordingInfo.style.display = 'block';
+
+            mediaRecorder.start(1000);
+
+            timerInterval = setInterval(() => {
+                if (timeLeft <= 0) {
+                    stopRecording();
+                } else {
+                    timeLeft--;
+                    updateTimerDisplay();
+                }
+            }, 1000);
+
+            recordingDot.style.display = 'inline-block';
+            statusText.textContent = 'Recording...';
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+
+            progress.style.width = '0%';
+            progressPercent.textContent = '0%';
+            timerDisplay.style.color = '#ff6600';
+        }
+
+        function stopRecording() {
+            if (!isRecording) return;
+
+            isRecording = false;
+            clearInterval(timerInterval);
+
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+            }
+
+            recordingDot.style.display = 'none';
+            statusText.textContent = 'Recording stopped';
+            recordingInfo.style.display = 'none';
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+
+            wavePlaceholder.style.display = 'flex';
+            voiceWave.style.display = 'none';
+        }
+
+        // Initialize app
+        init();
+    </script>
+</body>
+</html>
