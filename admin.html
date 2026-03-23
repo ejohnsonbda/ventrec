@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VentRec — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #f5f5f5;
+      --surface:  #ffffff;
+      --border:   #e0e0e0;
+      --text:     #111111;
+      --muted:    #888888;
+      --accent:   #ff5500;
+      --red:      #ef4444;
+      --green:    #22c55e;
+      --radius:   10px;
+      --font:     'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100vh;
+    }
+
+    /* ── Login Gate ─────────────────────────────────────────────────────── */
+    #loginGate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .login-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+    }
+
+    .login-logo {
+      font-size: 1.6rem;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      background: linear-gradient(180deg, #ff8c00 0%, #ff3300 60%, #cc0000 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+    .login-sub {
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 28px;
+    }
+
+    .login-card input[type="password"] {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 0.9rem;
+      background: var(--bg);
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s;
+      margin-bottom: 12px;
+    }
+    .login-card input[type="password"]:focus { border-color: var(--accent); }
+
+    .login-card button {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .login-card button:hover { opacity: .88; }
+
+    .login-err {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--red);
+      display: none;
+    }
+
+    /* ── Admin Shell ────────────────────────────────────────────────────── */
+    #adminShell { display: none; }
+
+    /* Top bar */
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .topbar-logo {
+      font-size: 1.1rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      background: linear-gradient(90deg, #ff8c00, #ff3300);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .stat-pill {
+      font-size: 0.72rem;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+    .btn-logout {
+      font-size: 0.78rem;
+      color: var(--muted);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-logout:hover { border-color: var(--red); color: var(--red); }
+
+    /* Main content */
+    .main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 28px 20px;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .toolbar-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .toolbar-right {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-sm {
+      padding: 7px 14px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-sm.danger:hover { border-color: var(--red); color: var(--red); }
+
+    /* Loading / empty */
+    .state-msg {
+      text-align: center;
+      padding: 60px 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* Recordings grid */
+    .recordings-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .rec-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      transition: border-color .2s;
+    }
+    .rec-card:hover { border-color: #ccc; }
+
+    .rec-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .rec-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text);
+      word-break: break-all;
+    }
+
+    .rec-meta {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 3px;
+    }
+
+    .meta-chip {
+      font-size: 0.68rem;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+
+    .rec-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .btn-icon {
+      width: 30px;
+      height: 30px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      transition: all .2s;
+      color: var(--text);
+    }
+    .btn-icon:hover { border-color: var(--red); color: var(--red); }
+
+    .rec-player {
+      width: 100%;
+      margin-top: 4px;
+      accent-color: var(--accent);
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 24px;
+    }
+    .page-btn {
+      padding: 6px 14px;
+      font-size: 0.78rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .page-btn:hover, .page-btn.active { border-color: var(--accent); color: var(--accent); }
+    .page-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* Toast */
+    .admin-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      display: none;
+      animation: slideUp .3s ease;
+      z-index: 100;
+      max-width: 320px;
+    }
+    .admin-toast.ok  { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+    .admin-toast.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+    @keyframes slideUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+</head>
+<body>
+
+<!-- ── Login Gate ──────────────────────────────────────────────────────── -->
+<div id="loginGate">
+  <div class="login-card">
+    <div class="login-logo">VentRec</div>
+    <div class="login-sub">Admin</div>
+    <input type="password" id="pwInput" placeholder="Enter admin password" autocomplete="current-password" />
+    <button onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="loginErr">Incorrect password.</div>
+  </div>
+</div>
+
+<!-- ── Admin Shell ─────────────────────────────────────────────────────── -->
+<div id="adminShell">
+  <div class="topbar">
+    <div class="topbar-logo">VentRec</div>
+    <div class="topbar-right">
+      <span class="stat-pill" id="statPill">Loading…</span>
+      <button class="btn-logout" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="toolbar">
+      <div class="toolbar-title">Recordings</div>
+      <div class="toolbar-right">
+        <button class="btn-sm" onclick="loadRecordings()">↺ Refresh</button>
+        <button class="btn-sm danger" onclick="deleteAll()">Delete All</button>
+      </div>
+    </div>
+
+    <div id="recList" class="recordings-list">
+      <div class="state-msg">Loading recordings…</div>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="admin-toast" id="adminToast"></div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────
+  const SUPABASE_URL      = 'https://ogabwaekaeinyduntwmt.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9nYWJ3YWVrYWVpbnlkdW50d210Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyNzUxNjMsImV4cCI6MjA4OTg1MTE2M30.A_48JfQ5cfUeY9WLvHiOSSlW5mHjHQmTSLkd-Y0dhi4';
+  const BUCKET            = 'recordings';
+  const ADMIN_PASSWORD    = 'ventrec2026';   // ← change this
+  const PAGE_SIZE         = 20;
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentPage = 0;
+  let totalCount  = 0;
+
+  // ── Auth ─────────────────────────────────────────────────────────────────
+  function doLogin() {
+    const pw = document.getElementById('pwInput').value;
+    if (pw === ADMIN_PASSWORD) {
+      sessionStorage.setItem('vr_admin', '1');
+      document.getElementById('loginGate').style.display  = 'none';
+      document.getElementById('adminShell').style.display = 'block';
+      loadRecordings();
+    } else {
+      document.getElementById('loginErr').style.display = 'block';
+    }
+  }
+
+  document.getElementById('pwInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  function doLogout() {
+    sessionStorage.removeItem('vr_admin');
+    document.getElementById('adminShell').style.display = 'none';
+    document.getElementById('loginGate').style.display  = 'flex';
+    document.getElementById('pwInput').value = '';
+  }
+
+  // Auto-login if session exists
+  if (sessionStorage.getItem('vr_admin') === '1') {
+    document.getElementById('loginGate').style.display  = 'none';
+    document.getElementById('adminShell').style.display = 'block';
+    loadRecordings();
+  }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function showToast(msg, type = 'ok') {
+    const t = document.getElementById('adminToast');
+    t.textContent = msg;
+    t.className = `admin-toast ${type}`;
+    t.style.display = 'block';
+    setTimeout(() => { t.style.display = 'none'; }, 4000);
+  }
+
+  function formatTime(ms) {
+    if (!ms) return '—';
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    return `${String(m).padStart(2,'0')}:${String(s % 60).padStart(2,'0')}`;
+  }
+
+  function formatBytes(b) {
+    if (!b) return '—';
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+    return (b/1048576).toFixed(2) + ' MB';
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString(undefined, {
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  // ── Load recordings ───────────────────────────────────────────────────────
+  async function loadRecordings(page = 0) {
+    currentPage = page;
+    const list = document.getElementById('recList');
+    list.innerHTML = '<div class="state-msg">Loading…</div>';
+
+    const from = page * PAGE_SIZE;
+    const to   = from + PAGE_SIZE - 1;
+
+    const { data, error, count } = await supabase
+      .from('recordings')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      list.innerHTML = `<div class="state-msg">Error: ${error.message}</div>`;
+      return;
+    }
+
+    totalCount = count || 0;
+    document.getElementById('statPill').textContent =
+      `${totalCount} recording${totalCount !== 1 ? 's' : ''}`;
+
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div class="state-msg">No recordings yet.</div>';
+      renderPagination();
+      return;
+    }
+
+    // For each recording, generate a fresh signed URL if storage_path exists
+    const rows = await Promise.all(data.map(async rec => {
+      let audioUrl = rec.storage_url;
+      if (rec.storage_path) {
+        const { data: urlData } = await supabase.storage
+          .from(BUCKET)
+          .createSignedUrl(rec.storage_path, 3600);
+        if (urlData?.signedUrl) audioUrl = urlData.signedUrl;
+      }
+      return { ...rec, _audioUrl: audioUrl };
+    }));
+
+    list.innerHTML = '';
+    rows.forEach(rec => {
+      const card = document.createElement('div');
+      card.className = 'rec-card';
+      card.id = `rec-${rec.id}`;
+      card.innerHTML = `
+        <div class="rec-top">
+          <div>
+            <div class="rec-name">${rec.file_name || 'Untitled'}</div>
+            <div class="rec-meta">
+              <span class="meta-chip">${formatDate(rec.created_at)}</span>
+              <span class="meta-chip">${formatTime(rec.duration_ms)}</span>
+              <span class="meta-chip">${formatBytes(rec.file_size)}</span>
+              <span class="meta-chip">${rec.mime_type || '—'}</span>
+            </div>
+          </div>
+          <div class="rec-actions">
+            ${rec._audioUrl ? `<a href="${rec._audioUrl}" download="${rec.file_name}" class="btn-icon" title="Download">↓</a>` : ''}
+            <button class="btn-icon" title="Delete" onclick="deleteRec('${rec.id}', '${rec.storage_path || ''}')">✕</button>
+          </div>
+        </div>
+        ${rec._audioUrl
+          ? `<audio controls class="rec-player" src="${rec._audioUrl}"></audio>`
+          : `<div style="font-size:.75rem;color:var(--muted);margin-top:4px">Audio file unavailable</div>`
+        }
+      `;
+      list.appendChild(card);
+    });
+
+    renderPagination();
+  }
+
+  // ── Pagination ────────────────────────────────────────────────────────────
+  function renderPagination() {
+    const pages = Math.ceil(totalCount / PAGE_SIZE);
+    const pg = document.getElementById('pagination');
+    pg.innerHTML = '';
+    if (pages <= 1) return;
+
+    const prev = document.createElement('button');
+    prev.className = 'page-btn';
+    prev.textContent = '← Prev';
+    prev.disabled = currentPage === 0;
+    prev.onclick = () => loadRecordings(currentPage - 1);
+    pg.appendChild(prev);
+
+    for (let i = 0; i < pages; i++) {
+      const b = document.createElement('button');
+      b.className = `page-btn${i === currentPage ? ' active' : ''}`;
+      b.textContent = i + 1;
+      b.onclick = () => loadRecordings(i);
+      pg.appendChild(b);
+    }
+
+    const next = document.createElement('button');
+    next.className = 'page-btn';
+    next.textContent = 'Next →';
+    next.disabled = currentPage >= pages - 1;
+    next.onclick = () => loadRecordings(currentPage + 1);
+    pg.appendChild(next);
+  }
+
+  // ── Delete single ─────────────────────────────────────────────────────────
+  async function deleteRec(id, storagePath) {
+    if (!confirm('Delete this recording? This cannot be undone.')) return;
+
+    // Delete from storage
+    if (storagePath) {
+      await supabase.storage.from(BUCKET).remove([storagePath]);
+    }
+
+    // Delete from DB
+    const { error } = await supabase.from('recordings').delete().eq('id', id);
+    if (error) { showToast('Delete failed: ' + error.message, 'err'); return; }
+
+    document.getElementById(`rec-${id}`)?.remove();
+    totalCount--;
+    document.getElementById('statPill').textContent =
+      `${totalCount} recording${totalCount !== 1 ? 's' : ''}`;
+    showToast('Recording deleted.', 'ok');
+  }
+
+  // ── Delete all ────────────────────────────────────────────────────────────
+  async function deleteAll() {
+    if (!confirm(`Delete ALL ${totalCount} recordings? This cannot be undone.`)) return;
+
+    // Get all storage paths
+    const { data: all } = await supabase
+      .from('recordings')
+      .select('storage_path')
+      .not('storage_path', 'is', null);
+
+    const paths = (all || []).map(r => r.storage_path).filter(Boolean);
+    if (paths.length > 0) {
+      await supabase.storage.from(BUCKET).remove(paths);
+    }
+
+    // Delete all DB rows
+    const { error } = await supabase.from('recordings').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    if (error) { showToast('Delete failed: ' + error.message, 'err'); return; }
+
+    showToast('All recordings deleted.', 'ok');
+    loadRecordings();
+  }
+</script>
+</body>
+</html>
